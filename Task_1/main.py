@@ -9,6 +9,7 @@ class Tokenizer:
     : initialized a dictionary for vocabulary
     : initialized a list for merge rules
     """
+
     def __init__(self):
         self.vocab = defaultdict(int)
         self.merge_rules = set()
@@ -32,7 +33,13 @@ class Tokenizer:
                 break
 
             best = max(pairs, key=pairs.get)
-            self.merge_rules.add(best)
+            # self.merge_rules.add(best)
+            # for pair in pairs.items():
+            #     print(pair[0])
+            #     break
+            for pair in pairs.items():
+                if pair[1] >= 10:
+                    self.merge_rules.add(pair[0])
 
             # Merge the tokens in the vocabulary
             new_vocab = defaultdict(int)
@@ -82,6 +89,14 @@ class Tokenizer:
                 file.write(','.join(rule) + '\n')
 
     def tokenize_samples(self, samples, file_name):
+        """
+        :param samples:
+        :param file_name:
+        :return: a file where each line contains comma separated tokens of each sample line
+
+        It tokenizes each line in the test file and adds tokens of each sample line into a single line of the file
+        separated by a comma
+        """
         tokenized_samples = []
         for sample in samples:
             tokens = self.tokenize(sample)
@@ -92,14 +107,13 @@ class Tokenizer:
                 file.write(sample + '\n')
 
 
-
 """
 Reading the Corpus from .txt file from given in the data directory. It reads the lines and split them into a list of strings.
-We also define the number of merges which can be changed but here we have defined to be 10 (random)
+We also define the number of merges which can be changed but here we have defined to be 100 (random)
 """
 
 corpus_file_path = '../data/Corpus.txt'
-num_merges = 10
+num_merges = 100
 
 with open(corpus_file_path, 'r', encoding='utf-8') as file:
     corpus = file.read().splitlines()
@@ -110,10 +124,6 @@ for sentence in corpus:
         tokenizer.vocab[word] += 1
 
 tokenizer.learn_vocabulary(corpus, num_merges)
-
-# sample_text = "low high high low low high"
-# tokens = tokenizer.tokenize(sample_text)
-# print(tokens)
 
 tokenizer.get_vocabulary_tokens("tokens.txt")
 

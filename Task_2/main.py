@@ -138,8 +138,8 @@ class BigramLM:
         return ' '.join(generated_sentence)
 
 
-# Example usage:
-corpus = ["the cat sat on the mat", "the dog barked"]
+# # Example usage:
+# corpus = ["the cat sat on the mat", "the dog barked"]
 lm = BigramLM()
 lm.learn_model(corpus)
 

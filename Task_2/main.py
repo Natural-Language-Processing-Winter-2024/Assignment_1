@@ -1,6 +1,8 @@
 import numpy as np
 from collections import defaultdict
 
+from Task_2.utils import classifier
+
 
 class BigramLM:
     def __init__(self):

@@ -37,9 +37,26 @@ grid_search.fit(X_train_vectorized, original_labels)
 # Get the best model from Grid Search
 best_svc = grid_search.best_estimator_
 
+# Print the best parameters
+print("Best Parameters:", grid_search.best_params_)
+
 # Evaluate the model on the generated samples
 y_pred = best_svc.predict(X_test_vectorized)
 
 # Print classification report and accuracy
 print("Classification Report:\n", classification_report(generated_labels, y_pred))
 print("Accuracy:", accuracy_score(generated_labels, y_pred))
+
+# Save the model
+import pickle
+
+with open('svc_model.pkl', 'wb') as file:
+    pickle.dump(best_svc, file)
+
+# Load the model
+with open('svc_model.pkl', 'rb') as file:
+    model = pickle.load(file)
+
+# Evaluate the model on the generated samples
+y_pred = model.predict(X_test_vectorized)
+

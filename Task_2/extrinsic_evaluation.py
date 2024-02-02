@@ -5,17 +5,17 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import classification_report, accuracy_score
 
 # Load the original corpus and labels
-with open('Assignment_1/data/corpus.txt', 'r', encoding='utf-8') as file:
+with open('../data/corpus.txt', 'r', encoding='utf-8') as file:
     original_corpus = file.readlines()
 
-with open('Assignment_1/data/labels.txt', 'r', encoding='utf-8') as file:
+with open('../data/labels.txt', 'r', encoding='utf-8') as file:
     original_labels = file.readlines()
 
 # Load the generated samples and labels for testing
-with open('output/generated.txt', 'r', encoding='utf-8') as file:
+with open('../output/generated.txt', 'r', encoding='utf-8') as file:
     generated_samples = file.readlines()
 
-with open('generated_labels.txt', 'r', encoding='utf-8') as file:
+with open('../output/generated_labels.txt', 'r', encoding='utf-8') as file:
     generated_labels = file.readlines()
 
 # Vectorize the text using TF-IDF

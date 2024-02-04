@@ -1,62 +1,66 @@
+import os
 import numpy as np
 from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.pipeline import Pipeline
 from sklearn.metrics import classification_report, accuracy_score
 
-# Load the original corpus and labels
-with open('../data/corpus.txt', 'r', encoding='utf-8') as file:
-    original_corpus = file.readlines()
+# Load the training data
+with open('corpus.txt', 'r', encoding='utf-8') as file:
+    train_texts = file.readlines()
 
-with open('../data/labels.txt', 'r', encoding='utf-8') as file:
-    original_labels = file.readlines()
+# Load the labels for each sentence
+with open('labels.txt', 'r', encoding='utf-8') as file:
+    train_labels = file.readlines()
 
-# Load the generated samples and labels for testing
-with open('../output/generated.txt', 'r', encoding='utf-8') as file:
-    generated_samples = file.readlines()
+# Define emotions
+emotions = ['sadness', 'joy', 'love', 'anger', 'fear', 'surprise']
 
-with open('../output/generated_labels.txt', 'r', encoding='utf-8') as file:
-    generated_labels = file.readlines()
+# Function to load testing data
+def load_testing_data(emotion):
+    file_path = f'gen_{emotion}.txt'
+    with open(file_path, 'r', encoding='utf-8') as file:
+        data = file.readlines()
+    labels = [emotion] * len(data)
+    texts = [' '.join(line.split()) for line in data]
+    return labels, texts
 
-# Vectorize the text using TF-IDF
-vectorizer = TfidfVectorizer(max_features=5000, ngram_range=(1, 2), stop_words='english')
+# Create the SVM model with TF-IDF vectorizer
+pipeline = Pipeline([
+    ('tfidf', TfidfVectorizer()),
+    ('svc', SVC())
+])
 
-# Transform the original corpus
-X_train_vectorized = vectorizer.fit_transform(original_corpus)
+# Parameters for Grid Search
+parameters = {
+    'tfidf__max_df': (0.25, 0.5, 0.75),
+    'tfidf__ngram_range': [(1, 1), (1, 2)],
+    'svc__C': [1, 10, 100, 1000],
+    'svc__kernel': ['linear', 'rbf']
+}
 
-# Transform the generated samples
-X_test_vectorized = vectorizer.transform(generated_samples)
+# Perform Grid Search
+grid_search = GridSearchCV(pipeline, parameters, n_jobs=-1, verbose=1)
+grid_search.fit(train_texts, train_labels)
 
-# Define the Support Vector Classifier (SVC) and perform Grid Search
-param_grid = {'C': [0.1, 1, 10, 100], 'kernel': ['linear', 'rbf', 'poly']}
-svc = SVC()
-
-grid_search = GridSearchCV(svc, param_grid, cv=5, scoring='accuracy')
-grid_search.fit(X_train_vectorized, original_labels)
-
-# Get the best model from Grid Search
-best_svc = grid_search.best_estimator_
-
-# Print the best parameters
+# Print best parameters from Grid Search
 print("Best Parameters:", grid_search.best_params_)
 
-# Evaluate the model on the generated samples
-y_pred = best_svc.predict(X_test_vectorized)
+# Use the best model for testing
+best_model = grid_search.best_estimator_
 
-# Print classification report and accuracy
-print("Classification Report:\n", classification_report(generated_labels, y_pred))
-print("Accuracy:", accuracy_score(generated_labels, y_pred))
+# Evaluate the model for each emotion
+for emotion in emotions:
+    test_labels, test_texts = load_testing_data(emotion)
+    predictions = best_model.predict(test_texts)
 
-# Save the model
-import pickle
-
-with open('svc_model.pkl', 'wb') as file:
-    pickle.dump(best_svc, file)
-
-# Load the model
-with open('svc_model.pkl', 'rb') as file:
-    model = pickle.load(file)
-
-# Evaluate the model on the generated samples
-y_pred = model.predict(X_test_vectorized)
-
+    # Calculate and print the accuracy and classification report
+    accuracy = accuracy_score(test_labels, predictions)
+    report = classification_report(test_labels, predictions)
+    
+    print(f"Emotion: {emotion}")
+    print(f"Accuracy: {accuracy}")
+    print("Classification Report:")
+    print(report)
+    print("\n")

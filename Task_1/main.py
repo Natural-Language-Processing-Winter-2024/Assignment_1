@@ -1,136 +1,101 @@
-from collections import defaultdict
 import re
-import os
+import collections
 
 
 class Tokenizer:
-    """
-    Tokenizer class
-    : initialized a dictionary for vocabulary
-    : initialized a list for merge rules
-    """
+    def __init__(self, text, num_merges):
+        self.num_merges = num_merges
+        self.text = text.split()
+        self.word_freq_dict = collections.defaultdict(int)
+        self.char_freq_dict = collections.defaultdict(int)
+        self.merge_rules = []
 
-    def __init__(self):
-        self.vocab = defaultdict(int)
-        self.merge_rules = set()
+    def learn_vocabulary(self):
+        # Get word frequency
+        for word in self.text:
+            self.word_freq_dict[' '.join(word) + ' $'] += 1
 
-    def learn_vocabulary(self, corpus, num_merges):
-        """
-        :param corpus:
-        :param num_merges:
-        :return: void
+        # Get character frequency
+        for word, freq in self.word_freq_dict.items():
+            chars = word.split()
+            for char in chars:
+                self.char_freq_dict[char] += freq
 
-        It learns the vocabulary from the provided corpus and merge rule (given number of merges)
-        """
-        for _ in range(num_merges):
-            pairs = defaultdict(int)
-            for sentence in corpus:
-                words = sentence.split()
-                for i in range(len(words) - 1):
-                    pairs[words[i], words[i + 1]] += 1
+        # Byte pair encoding
+        for _ in range(self.num_merges):
+            pairs = collections.defaultdict(int)
+            for word, freq in self.word_freq_dict.items():
+                chars = word.split()
+                for i in range(len(chars) - 1):
+                    pairs[chars[i], chars[i + 1]] += freq
 
-            if not pairs:
-                break
+            best_pair = max(pairs, key=pairs.get)
+            self.merge_rules.append(best_pair)
+            bigram = re.escape(' '.join(best_pair))
+            p = re.compile(r'(?<!\S)' + bigram + r'(?!\S)')
 
-            best = max(pairs, key=pairs.get)
-            # self.merge_rules.add(best)
-            # for pair in pairs.items():
-            #     print(pair[0])
-            #     break
-            for pair in pairs.items():
-                if pair[1] >= 10:
-                    self.merge_rules.add(pair[0])
+            merged_dict = {}
+            for word in self.word_freq_dict:
+                w_out = p.sub(''.join(best_pair), word)
+                merged_dict[w_out] = self.word_freq_dict[word]
 
-            # Merge the tokens in the vocabulary
-            new_vocab = defaultdict(int)
-            for word in self.vocab:
-                new_word = re.sub(' '.join(best), ''.join(best), word)
-                new_vocab[new_word] = self.vocab[word]
-            self.vocab = new_vocab
+            self.word_freq_dict = merged_dict
 
-    def tokenize(self, text):
-        """
-        :param text:
-        :return: tokenized text
+        # Get subword tokens
+        for word, freq in self.word_freq_dict.items():
+            chars = word.split()
+            for char in chars:
+                self.char_freq_dict[char] += freq
 
-        It tokenizes the text given in the parameter based on the vocabulary and merge rule (given number of merges)
-        and returns the tokenized text
-        """
-        tokens = []
-        for word in text.split():
-            word_tokens = word.split(' ')
-            for token in word_tokens:
-                if token in self.vocab:
-                    tokens.extend(token.split(' '))
-                else:
-                    tokens.append(token)
-        return tokens
+    def tokenize(self, sentence):
+        tokenized_sentence = []
+        for word in sentence.split():
+            word = word + '$'
+            if word not in self.word_freq_dict:
+                while len(word) != 0:
+                    subwords = [subword for subword in self.word_freq_dict if word.startswith(subword)]
+                    if len(subwords) == 0:
+                        tokenized_sentence.append(word[:-1])
+                        break
+                    max_len_subword = max(subwords, key=len)
+                    if max_len_subword[-1] == "$":
+                        max_len_subword = max_len_subword[:-1]
+                    tokenized_sentence.append(max_len_subword)
+                    word = word[len(max_len_subword):]
+            else:
+                tokenized_sentence.append(word[:-1])
+                continue
+        return tokenized_sentence
 
-    def get_vocabulary_tokens(self, file_name):
-        """
-        :param file_name:
-        :return: a file where each line corresponds to 1 token
+    def get_tokens(self, filename):
+        with open(f'../output/{filename}', 'w') as f:
+            for token in self.char_freq_dict.keys():
+                f.write(token + '$' + '\n')
 
-        It adds each token in vocabulary into each line of the file
-        """
-        with open(os.path.join("../output", file_name), 'w', encoding='utf-8') as file:
-            for token in self.vocab.keys():
-                file.write(token + '\n')
-
-    def get_merge_rules(self, file_name):
-        """
-        :param file_name:
-        :return: a file where each line corresponds to a learned merge rule
-
-        It adds a merge rule into each line of the file
-        """
-        with open(os.path.join("../output", file_name), 'w', encoding='utf-8') as file:
+    def get_merge_rules(self, filename):
+        with open(f'../output/{filename}', 'w') as f:
             for rule in self.merge_rules:
-                file.write(','.join(rule) + '\n')
+                f.write(', '.join(rule) + '\n')
 
-    def tokenize_samples(self, samples, file_name):
-        """
-        :param samples:
-        :param file_name:
-        :return: a file where each line contains comma separated tokens of each sample line
-
-        It tokenizes each line in the test file and adds tokens of each sample line into a single line of the file
-        separated by a comma
-        """
-        tokenized_samples = []
-        for sample in samples:
-            tokens = self.tokenize(sample)
-            tokenized_samples.append(','.join(tokens))
-
-        with open(os.path.join("../output", file_name), 'w', encoding='utf-8') as file:
-            for sample in tokenized_samples:
-                file.write(sample + '\n')
+    def get_tokenized_sentences(self, samples, filename):
+        with open(f'../output/{filename}', 'w') as f:
+            for sentence in samples:
+                sentence = self.tokenize(sentence)
+                f.write(', '.join(words for words in sentence) + '\n')
 
 
-"""
-Reading the Corpus from .txt file from given in the data directory. It reads the lines and split them into a list of strings.
-We also define the number of merges which can be changed but here we have defined to be 100 (random)
-"""
-
-corpus_file_path = '../data/Corpus.txt'
+filename = "../data/corpus.txt"
 num_merges = 100
 
-with open(corpus_file_path, 'r', encoding='utf-8') as file:
-    corpus = file.read().splitlines()
+text = open(filename, 'r').read()
+tokenizer = Tokenizer(text, num_merges)
+tokenizer.learn_vocabulary()
 
-tokenizer = Tokenizer()
-for sentence in corpus:
-    for word in sentence.split():
-        tokenizer.vocab[word] += 1
+text_file = "../data/test.txt"
 
-tokenizer.learn_vocabulary(corpus, num_merges)
+with open(text_file, 'r') as f:
+    text = f.readlines()
 
-tokenizer.get_vocabulary_tokens("tokens.txt")
-
-tokenizer.get_merge_rules("merge_rules.txt")
-
-test_sample_file = "../data/test.txt"
-with open(test_sample_file, 'r', encoding='utf-8') as file:
-    test_sample = file.read().splitlines()
-
-tokenizer.tokenize_samples(test_sample, "tokenized_samples.txt")
+tokenizer.get_tokens('tokens.txt')
+tokenizer.get_merge_rules('merge_rules.txt')
+tokenizer.get_tokenized_sentences(text, 'tokenized_samples.txt')
